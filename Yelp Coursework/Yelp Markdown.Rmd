@@ -1,0 +1,237 @@
+---
+title: <ins><center>Predicting User Ratings on Yelp</center></ins>
+date: <center>Elvis Hung 2103496</center>
+output: html_document
+
+---
+<br>
+<br>
+<br>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, echo = FALSE)
+library(tidyverse)
+library(glmnet)
+library(rpart.plot)
+
+```
+
+
+## 1   Introduction 
+
+<br>
+<span style="font-size: 17px;">
+This study aims to predict user ratings (stars) on Yelp using various regression models. We compare Ridge, Lasso and Decision Tree models to determine the most effective approach. Given our available dataset, the above regressions are chosen in combination to test for linear and non-linear relationships, identify unnecessary variables to simplify our model and reduce overfitting. Our findings indicate that the Lasso regression, with an R-squared value of 0.6, is our model of choice for predicting user ratings. 
+</span>
+
+<br>
+<br>
+
+## 2   Data Desription
+
+<br>
+<span style="font-size: 17px;">
+The primary objective of this research is to forecast the number of stars users assign to businesses on Yelp. To achieve this, we utilize two datasets: Yelp Review Small (400,000 observations, 26 variables) and Yelp User Small (1,400,000 observations, 19 variables). The former contains review details, including stars, comments, and user, while the latter offers additional user-specific information such as review count and average stars given.
+</span>
+
+<span style="font-size: 17px;">
+After combining the two datasets, we were left with 300,000 matching user observations. Initial analysis revealed a limited selection of viable independent variables. Thus, we focused on refining the user data, which involved generating new variables through ratios, computing days of user experience, and conducting sentiment analysis on user comments. This is used alongside existing user variables in our regression. 
+</span>
+
+<span style="font-size: 17px;">
+We normalized variables such as the number of useful, cool, or funny ratings by computing ratios against total user reviews. This improves comparability between users. The 'yelping since' variable was then used to compute the 'days of experience' variable. Additionally, stop words and other unnecessary symbols were removed for a sentiment score to be calculated using unsupervised machine learning. Upon examining the newly created variables, outliers were removed using the interquartile range method and missing data points were eliminated. The final dataset, after cleaning, consists of 100,000 observations and 19 variables.
+</span>
+
+<span style="font-size: 17px;">
+The cleaned data was split into training (90%) and test (10%) sets. Our dependent variable, 'stars', served as the predictor in training our Ridge, Lasso, and Decision Tree models.The below table shows the variables that will be used in our regressions. 
+</span>
+
+<br>
+
+|Type of Variables | Variables          |
+|:----------------:| :----------------: |
+|Dependent Variable            | stars              |
+|Existing Independent Variables | fans <br>compliment_hot <br> compliment_more <br> compliment_profile <br> compliment_cute <br> compliment_list <br> compliment_note <br> compliment_plain <br> compliment_cool <br> compliment_funny <br> compliment_writer <br> compliment_photos| 
+|New Independent Variables      | average_stars <br> useful_count_ratio <br> funny_count_ratio <br> cool_count_ratio <br> days_of_experience <br> sentiment_score|  
+
+<br>
+<br>
+
+## 3.1   Ridge results
+
+<center>
+```{r ridge_model}
+
+setwd("C:/Users/Elvis/Desktop/Yelp Coursework")
+
+ridge_model <- readRDS("ridge_model.rds")
+plot(ridge_model)
+```
+</center>
+
+<span style="font-size: 17px;">
+The MSE decreases as λ approaches 0.The repeated '7's above the plot indicate the number of features or coefficients retained in the model at different λ values. In Ridge regression, coefficients are shrunken so all variables are retained, but their influence is reduced as λ increases. The dotted line around log(λ) = -1.8 represents the best lambda value chosen by the computer, beyond this, increasing λ leads to worse performance in the model. Given the optimal λ is close to 0, this model does not provide much information about the dataset. 
+</span>
+
+<br>
+<br>
+
+## 3.2   Lasso results
+
+<center>
+```{r lasso_model}
+
+setwd("C:/Users/Elvis/Desktop/Yelp Coursework")
+
+lasso_model <- readRDS("lasso_model.rds")
+plot(lasso_model)
+```
+</center>
+
+<span style="font-size: 17px;">
+Looking at the above plot of mean squared error against log λ, we can observe what value of λ was chosen to minimize the error of the model. The MSE decreases sharply as log λ becomes more negative (which corresponds to smaller lambda) and begins to level off as log λ approaches -3. The best log λ value of -2.9 is depicted by the dotted grey line, which is equivalent to a λ value of 0.001. Due to the small λ, there is a risk of overfitting and suggests there is poor bias-variance tradeoff. The numbers above the plot (5, 4, 3, 2, 1) represent the number of non-zero coefficients in the Lasso model at the given λ values. Results show that the optimal results can be achieved with 2 non – zero coefficients, sentiment scores and average stars. 
+</span>
+
+<br>
+<br>
+
+## 3.3   Decision Tree results
+
+<center>
+```{r decision_tree}
+
+setwd("C:/Users/Elvis/Desktop/Yelp Coursework")
+
+dt_model <- readRDS("decision_tree_model.rds")
+rpart.plot::rpart.plot(dt_model)
+```
+</center>
+
+<span style="font-size: 17px;">
+The results from the decision tree shows that the independent variables that gave us the most information was the sentiment score followed by the average user stars, in line with our results from the lasso regression. The root node separates data into sentiment score less than 0.3 or greater than or equal to 0.3. Average star variable is then used for finer distinctions. Our predicted value ranges from 1.2 to 4.8 covering majority of possible entries from 1-5 stars. The percentages show how many data observations fall into each category. 
+</span>
+
+<br>
+<br>
+
+## 3.4  Evaluating regression results
+
+<br>
+<center>
+```{r compare_model}
+
+setwd("C:/Users/Elvis/Desktop/Yelp Coursework")
+
+compare_model <- readRDS("compare_model.rds")
+plot(compare_model)
+
+```
+<br>
+</center>
+
+|Regressions |R-Squared |Mean Absolute Error |Root Mean Squared Error |
+|:-----------:|:-----------:|:-----------:|:-----------:|
+|Lasso        |0.5812862 |0.8432053 |1.078258 |
+|Ridge        |0.5801131 |0.8478476 |1.079768 |
+|Decision Tree|0.5864005 |0.7705505 |1.071653 |
+
+<br>
+<span style="font-size: 17px;">
+We evaluated the models based on R-squared, Mean Absolute Error (MAE), and Root Mean Squared Error (RMSE). The three models produced show very similar accuracy scores, this suggests that all models are reasonably well-tuned for the dataset. Despite the decision tree model showing the best r-squared, MAE, RMSE results, the model of choice is the lasso regression. Not only does it remove uninformative variables, it remains easy to interpret. Since the dataset is complex, the results from linear models (lasso and ridge) showing similar performance to a decision tree implies that the decision tree model used is not complex enough and could be underfitting. 
+</span>
+
+<span style="font-size: 17px;">
+The lasso regression exhibited a R-squared value of 0.581, suggesting moderate explanatory power. It also showed reasonable prediction accuracy, MAE (0.84) and RMSE (1.08), though with room for improvement.
+</span>
+
+<br>
+<br>
+
+## 4   Limitations of the model
+
+<br>
+<span style="font-size: 17px;">
+This study highlights the effectiveness of using a lasso regression model to predict Yelp user ratings. However, there are limitations in the current approach. One major issue is the data cleaning stage, where numerous data points were discarded due to missing information. This approach risks losing valuable data and might introduce systematic errors. A gentler approach to data cleaning might help in preserving more data, potentially leading to a more accurate model. Additionally, the model predominantly focuses on user behaviour. It can be enhanced if detailed analysis of the businesses were included. This could involve, but isn't limited to, separate analyses based on business type or location. Lastly, the model could benefit from cross-validation analysis to enhance its accuracy and reliability. However, due to time constraints, this aspect was not explored in the current study.
+</span>
+
+<br>
+<br>
+
+## 5   DS methodology
+
+<br>
+<span style="font-size: 17px;">
+In this study, I employed the John Rallins' General DS Methodology for our analysis. Given the extensive data cleaning required, this method was suitable by structuring the process into three stages: problem definition, data understanding, and deployment.
+</span>
+
+<span style="font-size: 17px;">
+During the problem definition phase, I determined the regression models needed to predict the star ratings assigned by users to businesses. In the following stage, the dataset was examined. Relevant variables were identified, and various data cleaning techniques were implemented to refine our dataset. In the final stage, regressions were ran and tested to assess the model’s accuracy. 
+</span>
+
+<span style="font-size: 17px;">
+These stages were revisited repeatedly throughout and adjusted according to observed outcomes. In particular, the adaptation of including a sentiment analysis was introduced as a result of this methodology. The adoption of Rallins' methodology proved effective in structuring this research as it provided a systematic approach for my research. 
+</span>
+
+<br>
+<br>
+
+## 6   Challenges 
+
+<br>
+<span style="font-size: 17px;">
+The most significant challenge in this project was the data cleaning process. With a large volume of data points and numerous variables, it was important to select the more relevant variables for our analysis. This meant being cautious not to dismiss any variables too quickly, as they might hold valuable information. To prevent this, I conducted correlation analyses, which provided a clearer understanding of the dataset and helped identify variables that could be important for the regression.
+</span>
+
+<span style="font-size: 17px;">
+Initially, the models struggled to accurately predict user star ratings for businesses. To address this, I introduced additional data cleaning techniques. Sentiment analysis was applied to extract meaningful information from user comments, and efforts were made to reduce outliers. Implementing these techniques leads to significant improvements in the model’s ability to predict star ratings.
+</span>
+
+<br>
+<br>
+
+##   References
+
+<br>
+<span style="font-size: 17px;">
+[1] Grolemund, G. & Wickham, H. 2016. R for Data Science: Import, Tidy, Transform Visualise, and Model Data
+</span>
+
+<span style="font-size: 17px;">
+[2] Hastie, T.; Tibshirani, R.; Friedman, J. H.; & Friedman, J. H. 2009. The Elements of Statistical Learning: Data Mining, Inference, and Prediction (Vol. 2). New York: Springer.
+</span>
+
+<span style="font-size: 17px;">
+[3] James, G.; Witten, D.; Hastie, T.; & Tibshirani, R. 2021 (2nd Ed.). An Introduction to Statistical Learning with Applications in R. Springer.
+</span>
+
+<br>
+<br>
+<br>
+
+##   Tabula Disclaimer
+
+We're part of an academic community at Warwick.
+
+Whether studying, teaching, or researching, we’re all taking part in an expert conversation which must meet standards of academic integrity. When we all meet these standards, we can take pride in our own academic achievements, as individuals and as an academic community.
+
+Academic integrity means committing to honesty in academic work, giving credit where we've used others' ideas and being proud of our own achievements.
+
+In submitting my work I confirm that:
+
+1. I have read the guidance on academic integrity provided in the Student Handbook and understand the University regulations in relation to Academic Integrity. I am aware of the potential consequences of Academic Misconduct.
+
+2. I declare that the work is all my own, except where I have stated otherwise.
+
+3. No substantial part(s) of the work submitted here has also been submitted by me in other credit bearing assessments courses of study (other than in certain cases of a resubmission of a piece of work), and I acknowledge that if this has been done this may lead to an appropriate sanction.
+
+4. Where a generative Artificial Intelligence such as ChatGPT has been used I confirm I have abided by both the University guidance and specific requirements as set out in the Student Handbook and the Assessment brief. I have clearly acknowledged the use of any generative Artificial Intelligence in my submission, my reasoning for using it and which generative AI (or AIs) I have used. Except where indicated the work is otherwise entirely my own.
+
+5. I understand that should this piece of work raise concerns requiring investigation in relation to any of points above, it is possible that other work I have submitted for assessment will be checked, even if marks (provisional or confirmed) have been published.
+
+6. Where a proof-reader, paid or unpaid was used, I confirm that the proofreader was made aware of and has complied with the University’s proofreading policy.
+
+7. I consent that my work may be submitted to Turnitin or other analytical technology. I understand the use of this service (or similar), along with other methods of maintaining the integrity of the academic process, will help the University uphold academic standards and assessment fairness.
+
+Privacy statement
+
+The data on this form relates to your submission of coursework. The date and time of your submission, your identity, and the work you have submitted will be stored. We will only use this data to administer and record your coursework submission.
